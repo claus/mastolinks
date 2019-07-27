@@ -41,38 +41,38 @@ function getLinks(el, links = []) {
     return links;
 }
 
-function filterLink(status, href) {
+function isResourceLink(status, href) {
     const domain = status.account.acct.split('@')[1] || null;
     const isExternalTag =
         domain != null &&
         href.indexOf(domain) >= 0 &&
         (href.match(/\/tags?\//) || href.match(/\?tags?\=/));
     if (isExternalTag) {
-        return false;
+        return true;
     }
     const isTag = status.tags.find(tag => tag.url === href);
     if (isTag) {
-        return false;
+        return true;
     }
     const isMention = status.mentions.find(mention => mention.url === href);
     if (isMention) {
-        return false;
+        return true;
     }
     const isMedia = status.media_attachments.find(
         media =>
-            media.url === href ||
-            media.preview_url === href ||
-            media.remote_url === href ||
-            media.text_url === href
+            href.includes(media.url) ||
+            href.includes(media.preview_url) ||
+            href.includes(media.remote_url) ||
+            href.includes(media.text_url)
     );
     if (isMedia) {
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 
 function filterLinks(status, links) {
-    return links.filter(link => filterLink(status, link.href));
+    return links.filter(link => !isResourceLink(status, link.href));
 }
 
 function cleanLink(link) {
@@ -141,15 +141,16 @@ function resolveRedirects(links) {
     );
 }
 
-function extractLinks(status, instance) {
+module.exports = function extractLinks(status, instance) {
     if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
         return [];
     }
     const content = parse5.parseFragment(status.content);
     const rawLinks = getLinks(content);
     const filteredLinks = filterLinks(status, rawLinks);
-    return resolveRedirects(filteredLinks);
+    return resolveRedirects(filteredLinks).then(resolvedLinks =>
+        resolvedLinks.filter(
+            link => !isResourceLink(status, link.hrefCanonical)
+        )
+    );
 }
-
-module.exports.extractLinks = extractLinks;
-module.exports.filterLink = filterLink;

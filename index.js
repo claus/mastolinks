@@ -1,5 +1,5 @@
 const EventSource = require('eventsource');
-const { extractLinks, filterLink } = require('./utils/extractLinks');
+const extractLinks = require('./utils/extractLinks');
 
 var instance = 'mastodon.social';
 
@@ -15,9 +15,8 @@ es.onerror = event => {
 async function handleUpdate(event) {
     const data = JSON.parse(event.data);
     const links = await extractLinks(data, instance);
-    const filtered = links.filter(link => filterLink(data, link.hrefClean));
-    if (filtered.length) {
-        const urls = filtered.map(link => {
+    if (links.length) {
+        const urls = links.map(link => {
             let str = `- \x1B[33m${link.hrefClean}\x1B[39m`;
             if (link.status >= 400) {
                 str += ` \x1B[41m[${link.status}]\x1B[49m`;
