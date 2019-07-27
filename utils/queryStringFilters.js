@@ -7,6 +7,7 @@ export default {
         'reuters.com': ['feedtype', 'feedname'],
         'zeit.de': ['wt_zmc'],
         'washingtonpost.com': ['noredirect'],
+        'dw.com': ['maca'],
     },
     default: [
         'utm_source',
@@ -33,6 +34,7 @@ export default {
         'wkey',
         'wemail',
         'wtmc',
+        'wt_mc',
         'nr_email_referer',
         'ref',
         'spm',
