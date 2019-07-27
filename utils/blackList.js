@@ -1,5 +1,5 @@
-module.exports = {
-    accounts: [
-        'monitoring@fediverse.network',
-    ],
-};
+export default {
+  accounts: [
+    'monitoring@fediverse.network'
+  ]
+}
