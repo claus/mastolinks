@@ -2,7 +2,6 @@ import parse5 from 'parse5';
 import axios from 'axios';
 import { URL } from 'url';
 
-import PromisePool from './PromisePool';
 import queryStringFilters from './queryStringFilters';
 import blackList from './blackList';
 import getFullAcct from './getFullAcct';
@@ -104,7 +103,7 @@ function cleanLink(link) {
 async function resolveRedirects (links) {
     const resolvedLinks = [];
     const pushLink = link => resolvedLinks.push(cleanLink(link));
-    const pool = new PromisePool(links, async (link) => {
+    await Promise.all(links.map(async (link) => {
         const response = await axios.head(link.href).catch(err => err);
         if (!response || response instanceof Error) {
             pushLink({ ...link, status: 0, hrefCanonical: link.href });
@@ -117,8 +116,7 @@ async function resolveRedirects (links) {
                 pushLink({ ...link, status, hrefCanonical });
             }
         }
-    });
-    await pool.done();
+    }));
     return resolvedLinks;
 }
 

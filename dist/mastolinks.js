@@ -6,34 +6,6 @@ const EventSource = _interopDefault(require('eventsource'));
 const parse5 = _interopDefault(require('parse5'));
 const axios = _interopDefault(require('axios'));
 const url = require('url');
-const os = _interopDefault(require('os'));
-
-const pool = new Array(os.cpus().length).fill(null);
-
-class PromisePool {
-  constructor (jobs, handler) {
-    this.handler = handler;
-    this.jobs = jobs;
-  }
-
-  async done () {
-    await Promise.all(pool.map(() => {
-      // eslint-disable-next-line no-async-promise-executor
-      return new Promise(async (resolve) => {
-        while (this.jobs.length) {
-          let job;
-          try {
-            job = this.jobs.pop();
-            await this.handler(job);
-          } catch (err) {
-            console.log('Failed: ', job, err);
-          }
-        }
-        resolve();
-      });
-    }));
-  }
-}
 
 const queryStringFilters = {
   domains: {
@@ -204,7 +176,7 @@ function cleanLink(link) {
 async function resolveRedirects (links) {
     const resolvedLinks = [];
     const pushLink = link => resolvedLinks.push(cleanLink(link));
-    const pool = new PromisePool(links, async (link) => {
+    await Promise.all(links.map(async (link) => {
         const response = await axios.head(link.href).catch(err => err);
         if (!response || response instanceof Error) {
             pushLink({ ...link, status: 0, hrefCanonical: link.href });
@@ -217,8 +189,7 @@ async function resolveRedirects (links) {
                 pushLink({ ...link, status, hrefCanonical });
             }
         }
-    });
-    await pool.done();
+    }));
     return resolvedLinks;
 }
 
