@@ -173,26 +173,24 @@ function cleanLink(link) {
     };
 }
 
-async function resolveRedirects (links) {
-    const resolvedLinks = [];
-    const pushLink = link => resolvedLinks.push(cleanLink(link));
-    await Promise.all(links.map(async (link) => {
-        const response = await axios.head(link.href).catch(err => err);
-        if (!response || response instanceof Error) {
-            pushLink({ ...link, status: 0, hrefCanonical: link.href });
-            return;
-        }
-        const { status, request } = response;
-        if (request.res && request.res.responseUrl) {
-            const { responseUrl: hrefCanonical } = request.res;
-            if (hrefCanonical !== link.href) {
-                pushLink({ ...link, status, hrefCanonical });
+function resolveRedirects (links) {
+    return Promise.all(links.map((link) => {
+        return new Promise(async (resolve) => {
+            const response = await axios.head(link.href).catch(err => err);
+            if (!response || response instanceof Error) {
+                resolve({ ...link, status: 0, hrefCanonical: link.href });
+                return;
             }
-        }
+            const { status, request } = response;
+            if (request.res && request.res.responseUrl) {
+                const { responseUrl: hrefCanonical } = request.res;
+                if (hrefCanonical !== link.href) {
+                    resolve({ ...link, status, hrefCanonical });
+                }
+            }
+        }).then(cleanLink);
     }));
-    return resolvedLinks;
 }
-
 
 function extractLinks(status, instance) {
     if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
