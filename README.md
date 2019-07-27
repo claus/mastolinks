@@ -8,7 +8,7 @@ Plucks links out of a Mastodon stream
 
 ## Run
 
-`npm run monitor`
+`npm run lint && npm run dist && ./cli.js`
 
 ## Profit
 
