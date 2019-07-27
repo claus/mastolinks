@@ -100,25 +100,27 @@ function cleanLink(link) {
     };
 }
 
-function resolveRedirects (links) {
-    return Promise.all(links.map((link) => {
-        return new Promise(async (resolve) => {
-            const response = await axios.head(link.href).catch(err => err);
-            if (!response || response instanceof Error) {
-                resolve({ ...link, status: 0, hrefCanonical: link.href });
-                return;
-            }
-            const { status, request } = response;
-            if (request.res && request.res.responseUrl) {
-                const { responseUrl: hrefCanonical } = request.res;
-                if (hrefCanonical !== link.href) {
-                    resolve({ ...link, status, hrefCanonical });
+function resolveRedirects(links) {
+    return Promise.all(
+        links.map(link => {
+            return new Promise(async resolve => {
+                const response = await axios.head(link.href).catch(err => err);
+                if (!response || response instanceof Error) {
+                    resolve({ ...link, status: 0, hrefCanonical: link.href });
                     return;
                 }
-            }
-            resolve({ ...link, status: 0, hrefCanonical: link.href });
-        }).then(cleanLink);
-    }));
+                const { status, request } = response;
+                if (request.res && request.res.responseUrl) {
+                    const { responseUrl: hrefCanonical } = request.res;
+                    if (hrefCanonical !== link.href) {
+                        resolve({ ...link, status, hrefCanonical });
+                        return;
+                    }
+                }
+                resolve({ ...link, status: 0, hrefCanonical: link.href });
+            }).then(cleanLink);
+        })
+    );
 }
 
 export function extractLinks(status, instance) {

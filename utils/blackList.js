@@ -1,5 +1,3 @@
 export default {
-  accounts: [
-    'monitoring@fediverse.network'
-  ]
+    accounts: ['monitoring@fediverse.network'],
 };
