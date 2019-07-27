@@ -106,6 +106,7 @@ function resolveRedirects (links) {
             const response = await axios.head(link.href).catch(err => err);
             if (!response || response instanceof Error) {
                 resolve({ ...link, status: 0, hrefCanonical: link.href });
+                return;
             }
             const { status, request } = response;
             if (request.res && request.res.responseUrl) {
