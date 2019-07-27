@@ -30,7 +30,7 @@ class PromisePool {
           }
         }
         resolve();
-      })
+      });
     }));
   }
 }
@@ -104,101 +104,101 @@ const blackList = {
 
 function getFullAcct (account, defaultInstance) {
   const { acct } = account;
-  return acct.indexOf('@') >= 0 ? acct : `${acct}@${defaultInstance}`
+  return acct.indexOf('@') >= 0 ? acct : `${acct}@${defaultInstance}`;
 }
 
-function getTextContent (el) {
-  let text = '';
-  if (el) {
-    if (el.nodeName === '#text' && el.value && el.value.length) {
-      text = el.value;
+function getTextContent(el) {
+    let text = '';
+    if (el) {
+        if (el.nodeName === '#text' && el.value && el.value.length) {
+            text = el.value;
+        }
+        if (el.childNodes) {
+            el.childNodes.forEach(child => {
+                text += getTextContent(child);
+            });
+        }
     }
-    if (el.childNodes) {
-      for (const child of el.childNodes) {
-        text += getTextContent(child);
-      }
-    }
-  }
-  return text
+    return text;
 }
 
-function getLinks (el, links = []) {
-  if (el) {
-    if (el.nodeName === 'a') {
-      const hrefAttr = el.attrs.find(attr => attr.name === 'href');
-      if (hrefAttr && hrefAttr.value) {
-        links.push({
-          href: hrefAttr.value,
-          text: getTextContent(el)
-        });
-      }
+function getLinks(el, links = []) {
+    if (el) {
+        if (el.nodeName === 'a') {
+            const hrefAttr = el.attrs.find(attr => attr.name === 'href');
+            if (hrefAttr && hrefAttr.value) {
+                links.push({
+                    href: hrefAttr.value,
+                    text: getTextContent(el),
+                });
+            }
+        }
+        if (el.childNodes) {
+            el.childNodes.forEach(node => {
+                getLinks(node, links);
+            });
+        }
     }
-    if (el.childNodes) {
-      for (const node of el.childNodes) {
-        getLinks(node, links);
-      }
-    }
-  }
-  return links
+    return links;
 }
 
-function filterLink (status, href) {
-  const domain = status.account.acct.split('@')[1] || null;
-  const isExternalTag =
+function isResourceLink(status, href) {
+    const domain = status.account.acct.split('@')[1] || null;
+    const isExternalTag =
         domain != null &&
         href.indexOf(domain) >= 0 &&
-        (href.match(/\/tags?\//) || href.match(/\?tags?=/));
-  if (isExternalTag) {
-    return false
-  }
-  const isTag = status.tags.find(tag => tag.url === href);
-  if (isTag) {
-    return false
-  }
-  const isMention = status.mentions.find(mention => mention.url === href);
-  if (isMention) {
-    return false
-  }
-  const isMedia = status.media_attachments.find(
-    media =>
-      media.url === href ||
-            media.preview_url === href ||
-            media.remote_url === href ||
-            media.text_url === href
-  );
-  if (isMedia) {
-    return false
-  }
-  return true
+        (href.match(/\/tags?\//) || href.match(/\?tags?\=/));
+    if (isExternalTag) {
+        return true;
+    }
+    const isTag = status.tags.find(tag => tag.url === href);
+    if (isTag) {
+        return true;
+    }
+    const isMention = status.mentions.find(mention => mention.url === href);
+    if (isMention) {
+        return true;
+    }
+    const isMedia = status.media_attachments.find(
+        media =>
+            href.includes(media.url) ||
+            href.includes(media.preview_url) ||
+            href.includes(media.remote_url) ||
+            href.includes(media.text_url)
+    );
+    if (isMedia) {
+        return true;
+    }
+    return false;
 }
 
-function filterLinks (status, links) {
-  return links.filter(link => filterLink(status, link.href))
+function filterLinks(status, links) {
+    return links.filter(link => !isResourceLink(status, link.href));
 }
 
-function cleanLink (link) {
-  const url$1 = new url.URL(link.hrefCanonical);
-  const hostnameParts = url$1.hostname.split('.');
-  const searchParams = url$1.searchParams;
-  const filterSearchParams = (params, filters = []) => {
-    const deleteCandidates = [];
-    params.forEach((value, name) => {
-      if (filters.includes(name.toLowerCase())) {
-        deleteCandidates.push(name);
-      }
-    });
-    deleteCandidates.forEach(filter => params.delete(filter));
-  };
-  for (let i = hostnameParts.length - 2; i >= 0; i--) {
-    const hostnameTest = hostnameParts.slice(i).join('.');
-    const filters = queryStringFilters.domains[hostnameTest];
-    filterSearchParams(searchParams, filters);
-  }
-  filterSearchParams(searchParams, queryStringFilters.default);
-  return {
-    ...link,
-    hrefClean: url$1.href
-  }
+function cleanLink(link) {
+    const url$1 = new url.URL(link.hrefCanonical);
+    const hostnameParts = url$1.hostname.split('.');
+    const searchParams = url$1.searchParams;
+    const filterSearchParams = (params, filters = []) => {
+        const deleteCandidates = [];
+        params.forEach((value, name) => {
+            if (filters.includes(name.toLowerCase())) {
+                deleteCandidates.push(name);
+            }
+        });
+        deleteCandidates.forEach(filter => params.delete(filter));
+    };
+    for (let i = hostnameParts.length - 2; i >= 0; i--) {
+        const hostnameTest = hostnameParts.slice(i).join('.');
+        const filters = queryStringFilters.domains[hostnameTest];
+        filterSearchParams(searchParams, filters);
+    }
+    filterSearchParams(searchParams, queryStringFilters.default);
+    return {
+        ...link,
+        hrefClean: url$1.href,
+    };
 }
 
 async function resolveRedirects (links) {
@@ -208,7 +208,7 @@ async function resolveRedirects (links) {
     const response = await axios.head(link.href).catch(err => err);
     if (!response || response instanceof Error) {
       pushLink({ ...link, status: 0, hrefCanonical: link.href });
-      return
+      return;
     }
     const { status, request } = response;
     if (request.res && request.res.responseUrl) {
@@ -219,17 +219,22 @@ async function resolveRedirects (links) {
     }
   });
   await pool.done();
-  return resolvedLinks
+  return resolvedLinks;
 }
 
-function extractLinks (status, instance) {
-  if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
-    return []
-  }
-  const content = parse5.parseFragment(status.content);
-  const rawLinks = getLinks(content);
-  const filteredLinks = filterLinks(status, rawLinks);
-  return resolveRedirects(filteredLinks)
+
+function extractLinks(status, instance) {
+    if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
+        return [];
+    }
+    const content = parse5.parseFragment(status.content);
+    const rawLinks = getLinks(content);
+    const filteredLinks = filterLinks(status, rawLinks);
+    return resolveRedirects(filteredLinks).then(resolvedLinks =>
+        resolvedLinks.filter(
+            link => !isResourceLink(status, link.hrefCanonical)
+        )
+    );
 }
 
 const instance = 'mastodon.social';
@@ -241,34 +246,33 @@ es.onerror = event => console.error('### ERROR', event);
 async function handleUpdate(event) {
   const data = JSON.parse(event.data);
   const links = await extractLinks(data, instance);
-  const filtered = links.filter(link => filterLink(data, link.hrefClean));
-  if (filtered.length) {
-    const urls = filtered.map(link => {
-      let str = `- \x1B[33m${link.hrefClean}\x1B[39m`;
-      if (link.status >= 400) {
-        str += ` \x1B[41m[${link.status}]\x1B[49m`;
-      }
-      if (link.hrefCanonical !== link.hrefClean) {
-        str += `\n  \x1B[90m${link.hrefCanonical}\x1B[39m`;
-      }
-      if (link.href !== link.hrefCanonical) {
-        str += `\n  \x1B[90m${link.href}\x1B[39m`;
-      }
-      return str
-    });
-    const langCode = data.language || '??';
-    const emptyWidth = 76 - data.account.acct.length - langCode.length;
-    const lang = `\x1B[97m${langCode}\x1B[39m`;
-    const acct = `\x1B[97m${data.account.acct}\x1B[39m`;
-    const empty = Array.from({ length: emptyWidth }).join(' ');
-    console.log(`\x1B[485235m[${lang}] [${acct}]${empty}\x1B[49m`);
-    console.log(urls.join('\n'));
+  if (links.length) {
+      const urls = links.map(link => {
+          let str = `- \x1B[33m${link.hrefClean}\x1B[39m`;
+          if (link.status >= 400) {
+              str += ` \x1B[41m[${link.status}]\x1B[49m`;
+          }
+          if (link.hrefCanonical !== link.hrefClean) {
+              str += `\n  \x1B[90m${link.hrefCanonical}\x1B[39m`;
+          }
+          if (link.href !== link.hrefCanonical) {
+              str += `\n  \x1B[90m${link.href}\x1B[39m`;
+          }
+          return str;
+      });
+      const langCode = data.language || '??';
+      const emptyWidth = 76 - data.account.acct.length - langCode.length;
+      const lang = `\x1B[97m${langCode}\x1B[39m`;
+      const acct = `\x1B[97m${data.account.acct}\x1B[39m`;
+      const empty = Array.from({ length: emptyWidth }).join(' ');
+      console.log(`\x1B[48;5;235m[${lang}] [${acct}]${empty}\x1B[49m`);
+      console.log(urls.join('\n'));
   }
 }
 
 function handleDelete(event) {
   const id = JSON.parse(event.data);
-  // console.log('### DELETE', id)
+  // console.log('### DELETE', id);
 }
 
 es.addEventListener('update', handleUpdate);
