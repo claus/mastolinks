@@ -1,10 +1,83 @@
-import parse5 from 'parse5';
-import axios from 'axios';
-import { URL } from 'url';
+'use strict';
 
-import queryStringFilters from './queryStringFilters';
-import blackList from './blackList';
-import getFullAcct from './getFullAcct';
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+const EventSource = _interopDefault(require('eventsource'));
+const parse5 = _interopDefault(require('parse5'));
+const axios = _interopDefault(require('axios'));
+const url = require('url');
+
+const queryStringFilters = {
+  domains: {
+    'nytimes.com': ['smid', 'smtyp'],
+    'youtube.com': ['app', 'feature'],
+    'thehill.com': ['userid'],
+    'twitter.com': ['s'],
+    'reuters.com': ['feedtype', 'feedname'],
+    'zeit.de': ['wt_zmc'],
+    'washingtonpost.com': ['noredirect']
+  },
+  default: [
+    'utm_source',
+    'utm_medium',
+    'utm_term',
+    'utm_campaign',
+    'utm_content',
+    'utm_name',
+    'utm_cid',
+    'utm_reader',
+    'utm_viz_id',
+    'utm_pubreferrer',
+    'utm_swu',
+    'igshid',
+    'fbclid',
+    'gclid',
+    'ocid',
+    'ncid',
+    'bcid',
+    'bhid',
+    'recid',
+    'icid',
+    'ito',
+    'wkey',
+    'wemail',
+    'wtmc',
+    'nr_email_referer',
+    'ref',
+    'spm',
+    'ftag',
+    'recip',
+    'ktm_source',
+    'mkt_toc',
+    'mkt_tok',
+    'mc_cid',
+    'mc_eid',
+    'ns_source',
+    'ns_mchannel',
+    'ns_campaign',
+    'ns_linkname',
+    'ns_fee',
+    'sr_share',
+    'vero_conv',
+    'vero_id',
+    '_hsenc',
+    '_hsmi',
+    'hsctatracking',
+    '__twitter_impression',
+    'newsletterad'
+  ]
+};
+
+const blackList = {
+  accounts: [
+    'monitoring@fediverse.network'
+  ]
+};
+
+function getFullAcct (account, defaultInstance) {
+  const { acct } = account;
+  return acct.indexOf('@') >= 0 ? acct : `${acct}@${defaultInstance}`;
+}
 
 function getTextContent(el) {
     let text = '';
@@ -14,7 +87,7 @@ function getTextContent(el) {
         }
         if (el.childNodes) {
             el.childNodes.forEach(child => {
-                text += getTextContent(child, text);
+                text += getTextContent(child);
             });
         }
     }
@@ -76,9 +149,9 @@ function filterLinks(status, links) {
 }
 
 function cleanLink(link) {
-    const url = new URL(link.hrefCanonical);
-    const hostnameParts = url.hostname.split('.');
-    const searchParams = url.searchParams;
+    const url$1 = new url.URL(link.hrefCanonical);
+    const hostnameParts = url$1.hostname.split('.');
+    const searchParams = url$1.searchParams;
     const filterSearchParams = (params, filters = []) => {
         const deleteCandidates = [];
         params.forEach((value, name) => {
@@ -96,7 +169,7 @@ function cleanLink(link) {
     filterSearchParams(searchParams, queryStringFilters.default);
     return {
         ...link,
-        hrefClean: url.href,
+        hrefClean: url$1.href,
     };
 }
 
@@ -121,7 +194,7 @@ function resolveRedirects (links) {
     }));
 }
 
-export function extractLinks(status, instance) {
+function extractLinks(status, instance) {
     if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
         return [];
     }
@@ -134,3 +207,44 @@ export function extractLinks(status, instance) {
         )
     );
 }
+
+const instance = 'mastodon.social';
+const es = new EventSource(`https://${instance}/api/v1/streaming/public`);
+
+es.onopen = event => console.info('### OPEN', event);
+es.onerror = event => console.error('### ERROR', event);
+
+async function handleUpdate(event) {
+  const data = JSON.parse(event.data);
+  const links = await extractLinks(data, instance);
+  if (links.length) {
+      const urls = links.map(link => {
+          let str = `- \x1B[33m${link.hrefClean}\x1B[39m`;
+          if (link.status >= 400) {
+              str += ` \x1B[41m[${link.status}]\x1B[49m`;
+          }
+          if (link.hrefCanonical !== link.hrefClean) {
+              str += `\n  \x1B[90m${link.hrefCanonical}\x1B[39m`;
+          }
+          if (link.href !== link.hrefCanonical) {
+              str += `\n  \x1B[90m${link.href}\x1B[39m`;
+          }
+          return str;
+      });
+      const langCode = data.language || '??';
+      const emptyWidth = 76 - data.account.acct.length - langCode.length;
+      const lang = `\x1B[97m${langCode}\x1B[39m`;
+      const acct = `\x1B[97m${data.account.acct}\x1B[39m`;
+      const empty = Array.from({ length: emptyWidth }).join(' ');
+      console.log(`\x1B[48;5;235m[${lang}] [${acct}]${empty}\x1B[49m`);
+      console.log(urls.join('\n'));
+  }
+}
+
+function handleDelete(event) {
+  const id = JSON.parse(event.data);
+  // console.log('### DELETE', id);
+}
+
+es.addEventListener('update', handleUpdate);
+es.addEventListener('delete', handleDelete);
