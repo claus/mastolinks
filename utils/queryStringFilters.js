@@ -21,6 +21,7 @@ export default {
         'utm_viz_id',
         'utm_pubreferrer',
         'utm_swu',
+        'utm_sq',
         'igshid',
         'fbclid',
         'gclid',
