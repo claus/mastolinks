@@ -3,7 +3,6 @@ import axios from 'axios';
 import { URL } from 'url';
 
 import queryStringFilters from './queryStringFilters';
-import blackList from './blackList';
 import getFullAcct from './getFullAcct';
 
 function getTextContent(el) {
@@ -124,9 +123,6 @@ function resolveRedirects(links) {
 }
 
 export function extractLinks(status, instance) {
-    if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
-        return [];
-    }
     const content = parse5.parseFragment(status.content);
     const rawLinks = getLinks(content);
     const filteredLinks = filterLinks(status, rawLinks);

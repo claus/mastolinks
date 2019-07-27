@@ -71,15 +71,6 @@ const queryStringFilters = {
     ],
 };
 
-const blackList = {
-    accounts: ['monitoring@fediverse.network'],
-};
-
-function getFullAcct(account, defaultInstance) {
-    const { acct } = account;
-    return acct.indexOf('@') >= 0 ? acct : `${acct}@${defaultInstance}`;
-}
-
 function getTextContent(el) {
     let text = '';
     if (el) {
@@ -198,9 +189,6 @@ function resolveRedirects(links) {
 }
 
 function extractLinks(status, instance) {
-    if (blackList.accounts.includes(getFullAcct(status.account, instance))) {
-        return [];
-    }
     const content = parse5.parseFragment(status.content);
     const rawLinks = getLinks(content);
     const filteredLinks = filterLinks(status, rawLinks);
@@ -219,7 +207,7 @@ es.onerror = event => console.error('### ERROR', event);
 
 async function handleUpdate(event) {
     const data = JSON.parse(event.data);
-    const links = await extractLinks(data, instance);
+    const links = await extractLinks(data);
     if (links.length) {
         const urls = links.map(link => {
             let str = `- \x1B[33m${link.hrefClean}\x1B[39m`;
