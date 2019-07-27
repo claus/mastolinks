@@ -8,8 +8,11 @@
     "mastodon"
   ],
   "bin": {
-    "monitor": "./dist/index.js"
+    "mastolinks": "./cli.js"
   },
+  "files": [
+    "cli.js"
+  ],
   "scripts": {
     "dist": "rollup -c rollup.config.js",
     "lint": "eslint --fix --ext index.js utils/*.js"
