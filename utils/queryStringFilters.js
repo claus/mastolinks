@@ -57,4 +57,4 @@ export default {
     '__twitter_impression',
     'newsletterad'
   ]
-}
+};
