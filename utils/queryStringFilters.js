@@ -22,6 +22,7 @@ export default {
         'utm_pubreferrer',
         'utm_swu',
         'utm_sq',
+        'utm_int',
         'igshid',
         'fbclid',
         'gclid',
@@ -59,5 +60,6 @@ export default {
         'hsctatracking',
         '__twitter_impression',
         'newsletterad',
+        'sessid',
     ],
 };
