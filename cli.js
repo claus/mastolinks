@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 
-require('./dist/mastolinks')
+require('./dist/mastolinks');

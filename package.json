@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "dist": "rollup -c rollup.config.js",
-    "lint": "eslint --fix index.js utils/*.js"
+    "lint": "eslint --fix cli.js index.js utils/*.js rollup.config.js"
   },
   "main": "dist/index.js",
   "repository": "git@github.com:claus/mastolinks.git",

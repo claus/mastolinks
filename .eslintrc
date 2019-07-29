@@ -1,11 +1,11 @@
 {
-  "parser": "babel-eslint",
-  "extends": [
-    "plugin:import/errors",
-    "plugin:import/warnings",
-    "plugin:prettier/recommended"
-  ],
-  "rules": {
-    "semi": [2, "always"]
-  }
+    "parser": "babel-eslint",
+    "extends": [
+        "plugin:import/errors",
+        "plugin:import/warnings",
+        "plugin:prettier/recommended"
+    ],
+    "rules": {
+        "semi": [2, "always"]
+    }
 }
