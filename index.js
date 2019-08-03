@@ -1,29 +1,73 @@
 import EventSource from 'eventsource';
+import { w3cwebsocket as WebSocketClient } from 'websocket';
 import { extractLinks } from './utils/extractLinks';
 
 const feedStore = {};
 const statusStore = {};
 
-function monitorFeed(instance) {
-    const es = new EventSource(`https://${instance}/api/v1/streaming/public`);
-
-    es.addEventListener('open', handleOpen);
-    es.addEventListener('error', handleError);
-    es.addEventListener('update', handleUpdate);
-    es.addEventListener('delete', handleDelete);
-
-    feedStore[instance] = es;
+function monitorFeed(instance, ws = true) {
+    const base = `//${instance}/api/v1/streaming`;
+    if (ws) {
+        const websocket = new WebSocketClient(`wss:${base}?stream=public`);
+        websocket.addEventListener('open', handleOpen);
+        websocket.addEventListener('error', handleError);
+        websocket.addEventListener('close', handleClose);
+        websocket.addEventListener('message', handleUpdateWS);
+        feedStore[instance] = websocket;
+    } else {
+        const eventSource = new EventSource(`https:${base}/public`);
+        eventSource.addEventListener('open', handleOpen);
+        eventSource.addEventListener('error', handleError);
+        eventSource.addEventListener('delete', handleDeleteES);
+        eventSource.addEventListener('update', handleUpdateES);
+        feedStore[instance] = eventSource;
+    }
 
     function handleOpen(event) {
-        console.log(`\x1B[41m OPEN: [${instance}] \x1B[49m`, event);
+        console.log(`\x1B[41m OPEN: [${instance}] \x1B[49m`);
     }
 
     function handleError(event) {
-        console.log(`\x1B[41m ERROR: [${instance}] \x1B[49m`, event);
+        const meta = ws ? {} : event;
+        console.log(`\x1B[41m ERROR: [${instance}] \x1B[49m`, meta);
     }
 
-    async function handleUpdate(event) {
+    function handleClose(event) {
+        const meta = ws ? { code: event.code, reason: event.reason } : event;
+        console.log(`\x1B[41m CLOSE: [${instance}] \x1B[49m`, meta);
+    }
+
+    function handleDeleteES(event) {
+        const id = JSON.parse(event.data);
+        handleDelete(id);
+    }
+
+    function handleUpdateES(event) {
         const status = JSON.parse(event.data);
+        handleUpdate(status);
+    }
+
+    function handleUpdateWS(event) {
+        const json = JSON.parse(event.data);
+        switch (json.event) {
+            case 'update':
+                handleUpdate(JSON.parse(json.payload));
+                break;
+            case 'delete':
+                handleDelete(json.payload);
+                break;
+            default:
+                console.log(`#### UNKNOWN TYPE ${json.event} ####`);
+                console.log(json.payload);
+                break;
+        }
+    }
+
+    function handleDelete(id) {
+        // console.log(`######### DELETE ${id}`);
+    }
+
+    async function handleUpdate(status) {
         if (typeof statusStore[status.uri] === 'undefined') {
             statusStore[status.uri] = status;
             const links = await extractLinks(status, instance);
@@ -56,13 +100,9 @@ function monitorFeed(instance) {
             }
         }
     }
-
-    function handleDelete(event) {
-        const id = JSON.parse(event.data);
-        // console.log(`\x1B[41m DELETE: [${instance}] \x1B[49m`, id);
-    }
 }
 
 monitorFeed('mastodon.social');
 monitorFeed('mastodon.cloud');
 monitorFeed('pawoo.net');
+// monitorFeed('gab.com');

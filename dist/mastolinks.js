@@ -3,6 +3,7 @@
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 const EventSource = _interopDefault(require('eventsource'));
+const websocket = require('websocket');
 const parse5 = _interopDefault(require('parse5'));
 const axios = _interopDefault(require('axios'));
 const url = require('url');
@@ -203,24 +204,66 @@ function extractLinks(status, instance) {
 
 const statusStore = {};
 
-function monitorFeed(instance) {
-    const es = new EventSource(`https://${instance}/api/v1/streaming/public`);
-
-    es.addEventListener('open', handleOpen);
-    es.addEventListener('error', handleError);
-    es.addEventListener('update', handleUpdate);
-    es.addEventListener('delete', handleDelete);
+function monitorFeed(instance, ws = true) {
+    const base = `//${instance}/api/v1/streaming`;
+    if (ws) {
+        const websocket$1 = new websocket.w3cwebsocket(`wss:${base}?stream=public`);
+        websocket$1.addEventListener('open', handleOpen);
+        websocket$1.addEventListener('error', handleError);
+        websocket$1.addEventListener('close', handleClose);
+        websocket$1.addEventListener('message', handleUpdateWS);
+    } else {
+        const eventSource = new EventSource(`https:${base}/public`);
+        eventSource.addEventListener('open', handleOpen);
+        eventSource.addEventListener('error', handleError);
+        eventSource.addEventListener('delete', handleDeleteES);
+        eventSource.addEventListener('update', handleUpdateES);
+    }
 
     function handleOpen(event) {
-        console.log(`\x1B[41m OPEN: [${instance}] \x1B[49m`, event);
+        console.log(`\x1B[41m OPEN: [${instance}] \x1B[49m`);
     }
 
     function handleError(event) {
-        console.log(`\x1B[41m ERROR: [${instance}] \x1B[49m`, event);
+        const meta = ws ? {} : event;
+        console.log(`\x1B[41m ERROR: [${instance}] \x1B[49m`, meta);
     }
 
-    async function handleUpdate(event) {
+    function handleClose(event) {
+        const meta = ws ? { code: event.code, reason: event.reason } : event;
+        console.log(`\x1B[41m CLOSE: [${instance}] \x1B[49m`, meta);
+    }
+
+    function handleDeleteES(event) {
+        const id = JSON.parse(event.data);
+    }
+
+    function handleUpdateES(event) {
         const status = JSON.parse(event.data);
+        handleUpdate(status);
+    }
+
+    function handleUpdateWS(event) {
+        const json = JSON.parse(event.data);
+        switch (json.event) {
+            case 'update':
+                handleUpdate(JSON.parse(json.payload));
+                break;
+            case 'delete':
+                handleDelete(json.payload);
+                break;
+            default:
+                console.log(`#### UNKNOWN TYPE ${json.event} ####`);
+                console.log(json.payload);
+                break;
+        }
+    }
+
+    function handleDelete(id) {
+        // console.log(`######### DELETE ${id}`);
+    }
+
+    async function handleUpdate(status) {
         if (typeof statusStore[status.uri] === 'undefined') {
             statusStore[status.uri] = status;
             const links = await extractLinks(status);
@@ -253,13 +296,9 @@ function monitorFeed(instance) {
             }
         }
     }
-
-    function handleDelete(event) {
-        const id = JSON.parse(event.data);
-        // console.log(`\x1B[41m DELETE: [${instance}] \x1B[49m`, id);
-    }
 }
 
 monitorFeed('mastodon.social');
 monitorFeed('mastodon.cloud');
 monitorFeed('pawoo.net');
+// monitorFeed('gab.com');
